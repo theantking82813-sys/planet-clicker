@@ -1,282 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Planet Clicker</title>
-  <style>
-    body {
-      background: url("https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=1920&q=80");
-      background-size: cover;
-      background-position: center;
-      animation: spaceRotate 120s linear infinite;
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
-    }
+<meta charset="UTF-8">
+<title>Planet Clicker</title>
+<style>
+body{
+    margin:0;
+    font-family:Arial, sans-serif;
+    text-align:center;
+    color:white;
+    background: url("https://i.imgur.com/Y4z9GkR.jpg") center/cover no-repeat fixed;
+}
 
-    @keyframes spaceRotate {
-      from { background-position: 0% 50%; }
-      to { background-position: 100% 50%; }
-    }
+#game{
+    padding-top:40px;
+    backdrop-filter: blur(4px);
+}
 
-    h1 { margin-top: 15px; font-size: 48px; text-shadow: 0 0 15px black; }
-    #money { font-size: 32px; margin: 10px; text-shadow: 0 0 10px black; }
-    #time { font-size: 18px; margin-bottom: 5px; }
+#earth-container{
+    position:relative;
+    width:200px;
+    height:200px;
+    margin:20px auto;
+}
 
-    #game-area {
-      position: relative;
-      width: 300px;
-      height: 300px;
-      margin: auto;
-    }
+#earth{
+    font-size:120px;
+    cursor:pointer;
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+}
 
-    #earth {
-      font-size: 140px;
-      cursor: pointer;
-      user-select: none;
-      position: absolute;
-      top: 80px;
-      left: 80px;
-      z-index: 2;
-    }
+.orbit{
+    position:absolute;
+    width:100%;
+    height:100%;
+    animation: spin 6s linear infinite;
+}
 
-    .orbit {
-      position: absolute;
-      width: 300px;
-      height: 300px;
-      top: 0;
-      left: 0;
-      border-radius: 50%;
-      animation: spin 6s linear infinite;
-      display: none;
-    }
+.pet{
+    font-size:40px;
+    position:absolute;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+}
 
-    .pet {
-      font-size: 42px;
-      position: absolute;
-      top: -10px;
-      left: 130px;
-    }
+@keyframes spin{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+}
 
-    #sat-orbit { animation-duration: 4s; }
+button{
+    padding:10px 15px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:16px;
+}
 
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
+.panel{
+    background: rgba(0,0,0,.7);
+    padding:12px;
+    border-radius:10px;
+    width:320px;
+    margin:10px auto;
+    display:none;
+}
 
-    button {
-      margin: 6px;
-      padding: 10px 18px;
-      font-size: 16px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-    }
+.ach{
+    opacity:.4;
+}
 
-    #shop, #achievements {
-      display: none;
-      background: rgba(0,0,0,0.8);
-      padding: 15px;
-      border-radius: 12px;
-      width: 300px;
-      margin: 15px auto;
-    }
-
-    .shop-item, .achievement {
-      background: rgba(0,0,0,0.7);
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 10px;
-      opacity: 0.5;
-      transition: 0.3s;
-    }
-
-    .achievement.unlocked {
-      background: linear-gradient(135deg, gold, orange);
-      color: black;
-      font-weight: bold;
-      opacity: 1;
-      box-shadow: 0 0 15px gold;
-    }
-  </style>
+.ach.unlocked{
+    opacity:1;
+    color:#00ff99;
+}
+</style>
 </head>
 <body>
 
-  <h1>🌍 Planet Clicker</h1>
-  <div id="money">💵 $0</div>
-  <div id="time">⏱️ Time Played: 0:00</div>
+<div id="game">
+    <h1>🌍 Planet Clicker</h1>
+    <h2>$<span id="money">0</span></h2>
 
-  <div id="game-area">
-    <div id="orbit-asteroid" class="orbit">
-      <div class="pet">☄️</div>
+    <div id="earth-container">
+        <div id="orbits"></div>
+        <div id="earth">🌍</div>
     </div>
 
-    <div id="sat-orbit" class="orbit">
-      <div class="pet">🛰️</div>
+    <button onclick="toggleShop()">Shop</button>
+    <button onclick="toggleAchievements()">Achievements</button>
+
+    <div id="shop" class="panel"></div>
+    <div id="achievements" class="panel"></div>
+</div>
+
+<script>
+let money = 0;
+let perClick = 1;
+let perSecond = 0;
+let playTime = 0;
+
+let pets = {
+    asteroid:false,
+    satellite:false,
+    moon:false
+};
+
+let achievements = {
+    money:false,
+    time:false
+};
+
+const moneySpan = document.getElementById("money");
+const shop = document.getElementById("shop");
+const achievementsDiv = document.getElementById("achievements");
+
+function save(){
+    localStorage.setItem("planetSave", JSON.stringify({
+        money, perClick, perSecond, pets, achievements, playTime
+    }));
+}
+
+function load(){
+    let data = JSON.parse(localStorage.getItem("planetSave"));
+    if(!data) return;
+
+    money = data.money;
+    perClick = data.perClick;
+    perSecond = data.perSecond;
+    pets = data.pets;
+    achievements = data.achievements;
+    playTime = data.playTime;
+
+    if(pets.asteroid) addOrbit("☄️");
+    if(pets.satellite) addOrbit("🛰");
+    if(pets.moon) addOrbit("🌕");
+}
+
+function clickEarth(){
+    money += perClick;
+    update();
+}
+
+document.getElementById("earth").onclick = clickEarth;
+
+function toggleShop(){
+    shop.style.display = shop.style.display === "block" ? "none":"block";
+    renderShop();
+}
+
+function renderShop(){
+    shop.innerHTML = `
+    <h3>🛒 Pet Shop</h3>
+
+    ☄️ Asteroid ($200) +2 per click
+    <button onclick="buyAsteroid()">Buy</button><br><br>
+
+    🛰 Satellite ($500) +3 per second
+    <button onclick="buySatellite()">Buy</button><br><br>
+
+    🌕 Moon ($3500) +50 per click
+    <button onclick="buyMoon()">Buy</button>
+    `;
+}
+
+function addOrbit(emoji){
+    let orbit = document.createElement("div");
+    orbit.className = "orbit";
+    orbit.innerHTML = `<div class="pet">${emoji}</div>`;
+    document.getElementById("orbits").appendChild(orbit);
+}
+
+function buyAsteroid(){
+    if(money>=200 && !pets.asteroid){
+        money-=200;
+        pets.asteroid=true;
+        perClick+=2;
+        addOrbit("☄️");
+        update();
+    }
+}
+
+function buySatellite(){
+    if(money>=500 && !pets.satellite){
+        money-=500;
+        pets.satellite=true;
+        perSecond+=3;
+        addOrbit("🛰");
+        update();
+    }
+}
+
+function buyMoon(){
+    if(money>=3500 && !pets.moon){
+        money-=3500;
+        pets.moon=true;
+        perClick+=50;
+        addOrbit("🌕");
+        update();
+    }
+}
+
+function toggleAchievements(){
+    achievementsDiv.style.display = achievementsDiv.style.display==="block"?"none":"block";
+    renderAchievements();
+}
+
+function renderAchievements(){
+    achievementsDiv.innerHTML = `
+    <h3>🏆 Achievements</h3>
+
+    <div class="ach ${achievements.money?"unlocked":""}">
+    💰 $1000 (${achievements.money?"Unlocked":"Locked"})
     </div>
 
-    <div id="earth" onclick="clickEarth()">🌍</div>
-  </div>
-
-  <button onclick="toggleShop()">🛒 Shop</button>
-  <button onclick="toggleAchievements()">🏆 Achievements</button>
-
-  <div id="shop">
-    <h2>Pet Shop 🐾</h2>
-
-    <div class="shop-item">
-      ☄️ Asteroid Pet — $50<br>
-      +2 per click<br>
-      <button onclick="buyAsteroid()">Buy</button>
+    <div class="ach ${achievements.time?"unlocked":""}">
+    ⏱ 60 Minutes (${achievements.time?"Unlocked":Math.floor(playTime/60)} / 60)
     </div>
+    `;
+}
 
-    <div class="shop-item">
-      🛰️ Satellite Pet — $200<br>
-      +3 per second<br>
-      <button onclick="buySatellite()">Buy</button>
-    </div>
-  </div>
+function update(){
+    moneySpan.innerText = money;
 
-  <div id="achievements">
-    <h2>🏆 Achievements</h2>
-
-    <div id="ach-1000" class="achievement">
-      💰 $1,000 Club — Reach $1000
-    </div>
-
-    <div id="ach-60min" class="achievement">
-      ⏱️ One Hour Grinder — Play for 60 minutes<br>
-      <span id="time-left"></span>
-    </div>
-  </div>
-
-  <script>
-    let money = parseInt(localStorage.getItem("money")) || 0;
-    let clickPower = parseInt(localStorage.getItem("clickPower")) || 1;
-    let perSecond = parseInt(localStorage.getItem("perSecond")) || 0;
-
-    let hasAsteroid = localStorage.getItem("hasAsteroid") === "true";
-    let hasSatellite = localStorage.getItem("hasSatellite") === "true";
-
-    let ach1000 = localStorage.getItem("ach1000") === "true";
-    let ach60 = localStorage.getItem("ach60") === "true";
-
-    let playTime = parseInt(localStorage.getItem("playTime")) || 0;
-
-    updateDisplay();
-
-    if (hasAsteroid) document.getElementById("orbit-asteroid").style.display = "block";
-    if (hasSatellite) document.getElementById("sat-orbit").style.display = "block";
-    if (ach1000) unlock1000();
-    if (ach60) unlock60();
-
-    function clickEarth() {
-      money += clickPower;
-      save();
-      updateDisplay();
-      checkAchievements();
+    if(money>=1000 && !achievements.money){
+        achievements.money=true;
     }
 
-    function updateDisplay() {
-      document.getElementById("money").innerText = "💵 $" + money;
-      updateTimeDisplay();
+    save();
+}
+
+setInterval(()=>{
+    money+=perSecond;
+    playTime++;
+    if(playTime>=3600 && !achievements.time){
+        achievements.time=true;
     }
+    update();
+},1000);
 
-    function toggleShop() {
-      let shop = document.getElementById("shop");
-      shop.style.display = shop.style.display === "block" ? "none" : "block";
-    }
-
-    function toggleAchievements() {
-      let ach = document.getElementById("achievements");
-      ach.style.display = ach.style.display === "block" ? "none" : "block";
-    }
-
-    function buyAsteroid() {
-      if (hasAsteroid) return alert("You already own this pet!");
-      if (money >= 50) {
-        money -= 50;
-        clickPower += 2;
-        hasAsteroid = true;
-        document.getElementById("orbit-asteroid").style.display = "block";
-        save();
-        updateDisplay();
-      } else alert("Not enough money!");
-    }
-
-    function buySatellite() {
-      if (hasSatellite) return alert("You already own this pet!");
-      if (money >= 200) {
-        money -= 200;
-        perSecond += 3;
-        hasSatellite = true;
-        document.getElementById("sat-orbit").style.display = "block";
-        save();
-        updateDisplay();
-      } else alert("Not enough money!");
-    }
-
-    function checkAchievements() {
-      if (money >= 1000 && !ach1000) {
-        ach1000 = true;
-        localStorage.setItem("ach1000", true);
-        unlock1000();
-        alert("🏆 Achievement Unlocked: $1,000 Club!");
-      }
-
-      if (playTime >= 3600 && !ach60) {
-        ach60 = true;
-        localStorage.setItem("ach60", true);
-        unlock60();
-        alert("🏆 Achievement Unlocked: One Hour Grinder!");
-      }
-    }
-
-    function unlock1000() {
-      document.getElementById("ach-1000").classList.add("unlocked");
-    }
-
-    function unlock60() {
-      document.getElementById("ach-60min").classList.add("unlocked");
-      document.getElementById("time-left").innerText = "";
-    }
-
-    function save() {
-      localStorage.setItem("money", money);
-      localStorage.setItem("clickPower", clickPower);
-      localStorage.setItem("perSecond", perSecond);
-      localStorage.setItem("hasAsteroid", hasAsteroid);
-      localStorage.setItem("hasSatellite", hasSatellite);
-      localStorage.setItem("playTime", playTime);
-    }
-
-    setInterval(() => {
-      money += perSecond;
-      playTime++;
-      save();
-      updateDisplay();
-      checkAchievements();
-    }, 1000);
-
-    function updateTimeDisplay() {
-      let mins = Math.floor(playTime / 60);
-      let secs = playTime % 60;
-      document.getElementById("time").innerText =
-        `⏱️ Time Played: ${mins}:${secs.toString().padStart(2, "0")}`;
-
-      if (!ach60) {
-        let remaining = 3600 - playTime;
-        let rMin = Math.floor(remaining / 60);
-        let rSec = remaining % 60;
-        document.getElementById("time-left").innerText =
-          `⏳ Remaining: ${rMin}:${rSec.toString().padStart(2, "0")}`;
-      }
-    }
-  </script>
+load();
+update();
+</script>
 
 </body>
 </html>
+
