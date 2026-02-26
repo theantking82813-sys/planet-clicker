@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Planet Clicker</title>
+  <style>
+    body {
+      background: url("https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&w=1920&q=80");
+      background-size: cover;
+      background-position: center;
+      animation: spaceRotate 120s linear infinite;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    @keyframes spaceRotate {
+      from { background-position: 0% 50%; }
+      to { background-position: 100% 50%; }
+    }
+
+    h1 { margin-top: 15px; font-size: 48px; text-shadow: 0 0 15px black; }
+    #money { font-size: 32px; margin: 10px; text-shadow: 0 0 10px black; }
+    #time { font-size: 18px; margin-bottom: 5px; }
+
+    #game-area {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: auto;
+    }
+
+    #earth {
+      font-size: 140px;
+      cursor: pointer;
+      user-select: none;
+      position: absolute;
+      top: 80px;
+      left: 80px;
+      z-index: 2;
+    }
+
+    .orbit {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      animation: spin 6s linear infinite;
+      display: none;
+    }
+
+    .pet {
+      font-size: 42px;
+      position: absolute;
+      top: -10px;
+      left: 130px;
+    }
+
+    #sat-orbit { animation-duration: 4s; }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    button {
+      margin: 6px;
+      padding: 10px 18px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    #shop, #achievements {
+      display: none;
+      background: rgba(0,0,0,0.8);
+      padding: 15px;
+      border-radius: 12px;
+      width: 300px;
+      margin: 15px auto;
+    }
+
+    .shop-item, .achievement {
+      background: rgba(0,0,0,0.7);
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      opacity: 0.5;
+      transition: 0.3s;
+    }
+
+    .achievement.unlocked {
+      background: linear-gradient(135deg, gold, orange);
+      color: black;
+      font-weight: bold;
+      opacity: 1;
+      box-shadow: 0 0 15px gold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🌍 Planet Clicker</h1>
+  <div id="money">💵 $0</div>
+  <div id="time">⏱️ Time Played: 0:00</div>
+
+  <div id="game-area">
+    <div id="orbit-asteroid" class="orbit">
+      <div class="pet">☄️</div>
+    </div>
+
+    <div id="sat-orbit" class="orbit">
+      <div class="pet">🛰️</div>
+    </div>
+
+    <div id="earth" onclick="clickEarth()">🌍</div>
+  </div>
+
+  <button onclick="toggleShop()">🛒 Shop</button>
+  <button onclick="toggleAchievements()">🏆 Achievements</button>
+
+  <div id="shop">
+    <h2>Pet Shop 🐾</h2>
+
+    <div class="shop-item">
+      ☄️ Asteroid Pet — $50<br>
+      +2 per click<br>
+      <button onclick="buyAsteroid()">Buy</button>
+    </div>
+
+    <div class="shop-item">
+      🛰️ Satellite Pet — $200<br>
+      +3 per second<br>
+      <button onclick="buySatellite()">Buy</button>
+    </div>
+  </div>
+
+  <div id="achievements">
+    <h2>🏆 Achievements</h2>
+
+    <div id="ach-1000" class="achievement">
+      💰 $1,000 Club — Reach $1000
+    </div>
+
+    <div id="ach-60min" class="achievement">
+      ⏱️ One Hour Grinder — Play for 60 minutes<br>
+      <span id="time-left"></span>
+    </div>
+  </div>
+
+  <script>
+    let money = parseInt(localStorage.getItem("money")) || 0;
+    let clickPower = parseInt(localStorage.getItem("clickPower")) || 1;
+    let perSecond = parseInt(localStorage.getItem("perSecond")) || 0;
+
+    let hasAsteroid = localStorage.getItem("hasAsteroid") === "true";
+    let hasSatellite = localStorage.getItem("hasSatellite") === "true";
+
+    let ach1000 = localStorage.getItem("ach1000") === "true";
+    let ach60 = localStorage.getItem("ach60") === "true";
+
+    let playTime = parseInt(localStorage.getItem("playTime")) || 0;
+
+    updateDisplay();
+
+    if (hasAsteroid) document.getElementById("orbit-asteroid").style.display = "block";
+    if (hasSatellite) document.getElementById("sat-orbit").style.display = "block";
+    if (ach1000) unlock1000();
+    if (ach60) unlock60();
+
+    function clickEarth() {
+      money += clickPower;
+      save();
+      updateDisplay();
+      checkAchievements();
+    }
+
+    function updateDisplay() {
+      document.getElementById("money").innerText = "💵 $" + money;
+      updateTimeDisplay();
+    }
+
+    function toggleShop() {
+      let shop = document.getElementById("shop");
+      shop.style.display = shop.style.display === "block" ? "none" : "block";
+    }
+
+    function toggleAchievements() {
+      let ach = document.getElementById("achievements");
+      ach.style.display = ach.style.display === "block" ? "none" : "block";
+    }
+
+    function buyAsteroid() {
+      if (hasAsteroid) return alert("You already own this pet!");
+      if (money >= 50) {
+        money -= 50;
+        clickPower += 2;
+        hasAsteroid = true;
+        document.getElementById("orbit-asteroid").style.display = "block";
+        save();
+        updateDisplay();
+      } else alert("Not enough money!");
+    }
+
+    function buySatellite() {
+      if (hasSatellite) return alert("You already own this pet!");
+      if (money >= 200) {
+        money -= 200;
+        perSecond += 3;
+        hasSatellite = true;
+        document.getElementById("sat-orbit").style.display = "block";
+        save();
+        updateDisplay();
+      } else alert("Not enough money!");
+    }
+
+    function checkAchievements() {
+      if (money >= 1000 && !ach1000) {
+        ach1000 = true;
+        localStorage.setItem("ach1000", true);
+        unlock1000();
+        alert("🏆 Achievement Unlocked: $1,000 Club!");
+      }
+
+      if (playTime >= 3600 && !ach60) {
+        ach60 = true;
+        localStorage.setItem("ach60", true);
+        unlock60();
+        alert("🏆 Achievement Unlocked: One Hour Grinder!");
+      }
+    }
+
+    function unlock1000() {
+      document.getElementById("ach-1000").classList.add("unlocked");
+    }
+
+    function unlock60() {
+      document.getElementById("ach-60min").classList.add("unlocked");
+      document.getElementById("time-left").innerText = "";
+    }
+
+    function save() {
+      localStorage.setItem("money", money);
+      localStorage.setItem("clickPower", clickPower);
+      localStorage.setItem("perSecond", perSecond);
+      localStorage.setItem("hasAsteroid", hasAsteroid);
+      localStorage.setItem("hasSatellite", hasSatellite);
+      localStorage.setItem("playTime", playTime);
+    }
+
+    setInterval(() => {
+      money += perSecond;
+      playTime++;
+      save();
+      updateDisplay();
+      checkAchievements();
+    }, 1000);
+
+    function updateTimeDisplay() {
+      let mins = Math.floor(playTime / 60);
+      let secs = playTime % 60;
+      document.getElementById("time").innerText =
+        `⏱️ Time Played: ${mins}:${secs.toString().padStart(2, "0")}`;
+
+      if (!ach60) {
+        let remaining = 3600 - playTime;
+        let rMin = Math.floor(remaining / 60);
+        let rSec = remaining % 60;
+        document.getElementById("time-left").innerText =
+          `⏳ Remaining: ${rMin}:${rSec.toString().padStart(2, "0")}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
